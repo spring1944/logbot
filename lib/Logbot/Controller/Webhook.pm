@@ -14,6 +14,8 @@ sub event ($c) {
 	my $secret = $c->config->{github}->{webhook_secret};
 	my $hash = hmac_sha1_hex($content, $secret);
 	my $signature = $c->req->headers->header('X-Hub-Signature');
+	# thanks, github
+	$signature =~ s/^sha1=//g;
 
 	if ($signature and $hash eq $signature) {
 		my $event_type = $c->req->headers->header('X-Github-Event') // 'UNKNOWN EVENT';
@@ -28,7 +30,7 @@ sub event ($c) {
 
 				$c->irc->announce($parsed_event, $d->begin);
 			},
-			sub ($d, $err) {
+			sub ($d, $err = '') {
 				die "bad announce\n" if $err;
 				$c->render(text => "ok thanks");
 			}
