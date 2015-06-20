@@ -1,14 +1,23 @@
 package Logbot;
 use Mojo::Base 'Mojolicious';
+
 use Logbot::IRC;
+
 use experimental qw(postderef signatures);
 
-sub startup ($c) {
-	my $config = $c->plugin('Config');
+sub startup ($app) {
+	my $config = $app->plugin('Config');
 
-	my $r = $c->routes;
+	$app->helper(config => sub {
+		state $config = $config;
+	});
 
-	$c->helper(irc => sub {
+	$app->helper('reply.exception' => sub ($c, $err) {
+		$app->log->error("broken page: ", $err->message);
+		$c->render(status => 500, text => "server error\n");
+	});
+
+	$app->helper(irc => sub {
 		state $irc = Logbot::IRC->new(
 			channels => $config->{irc}->{channels},
 			user => $config->{irc}->{user},
@@ -18,11 +27,20 @@ sub startup ($c) {
 		);
 	});
 
-	$c->irc->on(message => sub ($irc, $channel, $user, $message) {
-		$irc->say($user => "hi $user. did you say $message?");
+	$app->irc->connect;
+
+	my $bot_is_ready;
+	$app->irc->on(joined_all_channels => sub {
+		$bot_is_ready = 1;
 	});
 
-	$c->irc->connect;
+	$app->hook(before_dispatch => sub ($c) {
+		$c->render(status => 503, text => 'not yet ready') if not $bot_is_ready;
+	});
+
+	my $r = $app->routes;
+	$r->post('/event')->to('webhook#event');
 }
+
 
 1;
