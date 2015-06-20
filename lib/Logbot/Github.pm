@@ -25,7 +25,7 @@ my %handlers = (
 				get_short_url($p->{compare}, $d->begin);
 			},
 			sub ($d, $link) {
-				my $preview = (split "\n", $commit->{message})[0];
+				my $preview = (split "\n", $commit->{message})[0] // '';
 				my $short_sha = substr $p->{after}, 0, 6;
 				$preview = _trim($preview);
 				my $message = ["$p->{sender}->{login} pushed $short_sha to $repo->{name}/$ref: $preview $link"];
