@@ -24,9 +24,9 @@ sub event ($c) {
 			sub ($d) {
 				parse_event($event_type, $c->req->json, $d->begin);
 			},
-			sub ($d, $parsed_event = '', $err = '') {
+			sub ($d, $parsed_event = [], $err = '') {
 				die $err if $err;
-				die "unrecognized event: $event_type: $content\n" if !$parsed_event;
+				die "empty announcement for event $event_type" if scalar $parsed_event->@* == 0;
 
 				$c->irc->announce($parsed_event, $d->begin);
 			},

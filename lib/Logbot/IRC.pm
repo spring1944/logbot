@@ -88,7 +88,9 @@ sub announce ($self, $message, $cb = sub {}) {
 	Mojo::IOLoop->delay(
 		sub ($d) {
 			for my $chan ($self->channels->@*) {
-				$self->say($chan, $message, $d->begin);
+				for my $chunk ($message->@*) {
+					$self->say($chan, $chunk, $d->begin);
+				}
 			}
 		},
 		sub ($d, @err) {
