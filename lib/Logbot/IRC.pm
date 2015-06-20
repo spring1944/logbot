@@ -78,10 +78,28 @@ sub join ($self, $chan, $cb) {
 	$self->write(join => $chan, $cb);
 }
 
-sub say ($self, $channel, $message, $cb = sub { }) {
+sub say ($self, $channel, $message, $cb = sub {}) {
 	warn "$channel <<<<< $message\n" if DEBUG;
 
 	$self->write(PRIVMSG => $channel, ":$message", $cb);
+}
+
+sub announce ($self, $message, $cb = sub {}) {
+	Mojo::IOLoop->delay(
+		sub ($d) {
+			for my $chan ($self->channels->@*) {
+				$self->say($chan, $message, $d->begin);
+			}
+		},
+		sub ($d, @err) {
+			my @errors = grep { $_ } @err;
+			if (@errors) {
+				$cb->($self, @errors);
+			} else {
+				$cb->($self);
+			}
+		}
+	)->wait;
 }
 
 1;
