@@ -37,6 +37,7 @@ my %handlers = (
 	issue_comment => sub ($p, $cb) {
 		my $comment = $p->{comment};
 		my $issue = $p->{issue};
+		my $repo = $p->{repository};
 		Mojo::IOLoop->delay(
 			sub ($d) {
 				get_short_url($comment->{html_url}, $d->begin);
@@ -47,7 +48,7 @@ my %handlers = (
 					$preview .= '...';
 				}
 				$preview = _trim($preview);
-				my $message = ["$p->{sender}->{login} commented on $issue->{title} (#$issue->{number}): $preview. $link"];
+				my $message = ["$p->{sender}->{login} commented on $issue->{title} ($repo->{name} #$issue->{number}): $preview. $link"];
 				$cb->($d, $message);
 			},
 		)->wait;
@@ -55,13 +56,14 @@ my %handlers = (
 
 	issues => sub ($p, $cb) {
 		my $issue = $p->{issue};
+		my $repo = $p->{repository};
 		Mojo::IOLoop->delay(
 			sub ($d) {
 				get_short_url($issue->{html_url}, $d->begin);
 			},
 			sub ($d, $link) {
 				# 'kanatohodets opened #43: airplanes fly oddly. review: git.io/asdfds'
-				my $message = ["$p->{sender}->{login} $p->{action} #$issue->{number}: $issue->{title}. review: $link"];
+				my $message = ["$p->{sender}->{login} $p->{action} $repo->{name} #$issue->{number}: $issue->{title}. $link"];
 				$cb->($d, $message);
 			}
 		)->wait;
