@@ -13,7 +13,7 @@ sub event ($c) {
 
 	my $secret = $c->config->{github}->{webhook_secret};
 	my $hash = hmac_sha1_hex($content, $secret);
-	my $signature = $c->req->headers->header('X-Hub-Signature');
+	my $signature = $c->req->headers->header('X-Hub-Signature') // '';
 	# thanks, github
 	$signature =~ s/^sha1=//g;
 
@@ -22,23 +22,23 @@ sub event ($c) {
 
 		Mojo::IOLoop->delay(
 			sub ($d) {
-				parse_event($event_type, $c->req->json, $d->begin);
+				parse_event($event_type, $c->req->json, $d->begin(0));
 			},
-			sub ($d, $parsed_event = [], $err = '') {
-				die $err if $err;
-				die "empty announcement for event $event_type" if scalar $parsed_event->@* == 0;
-
-				$c->irc->announce($parsed_event, $d->begin);
+			sub ($d, $parsed_event) {
+				# empty message -> we decided not to notify for this event
+				if (scalar $parsed_event->@*) {
+					$c->irc->announce($parsed_event, $d->begin);
+				} else {
+					$d->pass;
+				}
 			},
-			sub ($d, $err = '') {
-				die "bad announce\n" if $err;
+			sub ($d) {
 				$c->render(text => "ok thanks");
 			}
 		)->catch( sub ($d, $err) {
 			$c->app->log->warn($err);
 			$c->render(status => 400, text => 'bad request/irc trouble');
 		})->wait;
-
 	} else {
 		$c->render(status => 401, text => "unauthorized");
 	}

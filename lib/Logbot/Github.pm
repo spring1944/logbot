@@ -4,6 +4,7 @@ use warnings;
 
 use Mojo::IOLoop;
 use Mojo::UserAgent;
+use Data::Dumper qw(Dumper);
 
 use Exporter 'import';
 
@@ -14,6 +15,10 @@ use experimental qw(postderef signatures);
 my $ua = Mojo::UserAgent->new;
 $ua->max_redirects(5);
 
+my %notification_blacklist = (
+	'spring1944/master' => 1
+);
+
 my %handlers = (
 	push => sub ($p, $cb) {
 		my $commit = $p->{head_commit};
@@ -22,16 +27,31 @@ my %handlers = (
 
 		Mojo::IOLoop->delay(
 			sub ($d) {
-				get_short_url($p->{compare}, $d->begin);
+				die "blacklisted repo/branch" if $notification_blacklist{"$repo/$ref"};
+				get_short_url($p->{compare}, $d->begin(0));
 			},
 			sub ($d, $link) {
 				my $preview = (split "\n", $commit->{message})[0] // '';
 				my $short_sha = substr $p->{after}, 0, 6;
 				$preview = _trim($preview);
-				my $message = ["$p->{sender}->{login} pushed $short_sha to $repo->{name}/$ref: $preview $link"];
-				$cb->($d, $message);
+				my $message = sprintf("%s pushed %s to %s/%s: %s %s",
+					$p->{sender}->{login},
+					$short_sha,
+					$repo->{name},
+					$ref,
+					$preview,
+					$link);
+
+				$cb->([$message]);
 			}
-		)->wait;
+		)->catch(sub ($d, $err) {
+			if ($err eq "blacklisted repo/branch") {
+				$cb->([]);
+			} else {
+				# rethrow
+				die $err;
+			}
+		})->wait;
 	},
 
 	issue_comment => sub ($p, $cb) {
@@ -40,16 +60,25 @@ my %handlers = (
 		my $repo = $p->{repository};
 		Mojo::IOLoop->delay(
 			sub ($d) {
-				get_short_url($comment->{html_url}, $d->begin);
+				get_short_url($comment->{html_url}, $d->begin(0));
 			},
 			sub ($d, $link) {
 				my $preview = substr $comment->{body}, 0, 60;
+				$preview = _trim($preview);
+
 				if (length $preview < length $comment->{body}) {
 					$preview .= '...';
 				}
-				$preview = _trim($preview);
-				my $message = ["$p->{sender}->{login} commented on $issue->{title} ($repo->{name} #$issue->{number}): $preview. $link"];
-				$cb->($d, $message);
+
+				my $message = sprintf("%s commented on %s (%s #%s): %s %s",
+					$p->{sender}->{login},
+					$issue->{title},
+					$repo->{name},
+					$issue->{number},
+					$preview,
+					$link);
+
+				$cb->([$message]);
 			},
 		)->wait;
 	},
@@ -59,12 +88,19 @@ my %handlers = (
 		my $repo = $p->{repository};
 		Mojo::IOLoop->delay(
 			sub ($d) {
-				get_short_url($issue->{html_url}, $d->begin);
+				get_short_url($issue->{html_url}, $d->begin(0));
 			},
 			sub ($d, $link) {
 				# 'kanatohodets opened #43: airplanes fly oddly. review: git.io/asdfds'
-				my $message = ["$p->{sender}->{login} $p->{action} $repo->{name} #$issue->{number}: $issue->{title}. $link"];
-				$cb->($d, $message);
+				my $message = sprintf("%s %s %s #%s: %s. %s",
+					$p->{sender}->{login},
+					$p->{action},
+					$repo->{name},
+					$issue->{number},
+					$issue->{title},
+					$link);
+
+				$cb->([$message]);
 			}
 		)->wait;
 	},
@@ -78,17 +114,16 @@ sub get_short_url ($shortlink_target, $cb) {
 		sub ($d, $tx) {
 			die $tx->error if $tx->error;
 			my $link = $tx->res->headers->location // $shortlink_target;
-			$cb->($d, $link);
+			$cb->($link);
 		}
-	)->wait;
+	)->catch(sub ($d, $err) {
+		$cb->($shortlink_target);
+	})->wait;
 }
 
 sub parse_event ($event_type, $payload, $cb) {
-	if ($handlers{$event_type}) {
-		$handlers{$event_type}->($payload, $cb);
-	} else {
-		$cb->('', [], "unknown event: $event_type $payload\n");
-	}
+	die "unknown event: $event_type " . Dumper($payload). "\n" if not $handlers{$event_type};
+	$handlers{$event_type}->($payload, $cb);
 }
 
 sub _trim ($str) {

@@ -80,7 +80,6 @@ sub join ($self, $chan, $cb) {
 
 sub say ($self, $channel, $message, $cb = sub {}) {
 	warn "$channel <<<<< $message\n" if DEBUG;
-
 	$self->write(PRIVMSG => $channel, ":$message", $cb);
 }
 
@@ -95,11 +94,9 @@ sub announce ($self, $message, $cb = sub {}) {
 		},
 		sub ($d, @err) {
 			my @errors = grep { $_ } @err;
-			if (@errors) {
-				$cb->($self, @errors);
-			} else {
-				$cb->($self);
-			}
+			die @errors if @errors;
+
+			$self->$cb;
 		}
 	)->wait;
 }
