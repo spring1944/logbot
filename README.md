@@ -29,3 +29,4 @@ based on Mojolicious and Mojo::IRC
 ## TODO
 * add more events to the github handler
 * log chat, provide a simple interface to look at it/search it
+* tests that don't involve running cURL
