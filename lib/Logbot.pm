@@ -27,6 +27,8 @@ sub startup ($app) {
 		);
 	});
 
+	$app->irc->log($app->log);
+
 	$app->irc->connect;
 
 	my $bot_is_ready;
