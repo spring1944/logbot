@@ -83,10 +83,10 @@ sub say ($self, $channel, $message, $cb = sub {}) {
 	$self->write(PRIVMSG => $channel, ":$message", $cb);
 }
 
-sub announce ($self, $message, $cb = sub {}) {
+sub announce ($self, $channels, $message, $cb = sub {}) {
 	Mojo::IOLoop->delay(
 		sub ($d) {
-			for my $chan ($self->channels->@*) {
+			for my $chan ($channels->@*) {
 				for my $chunk ($message->@*) {
 					$self->say($chan, $chunk, $d->begin);
 				}

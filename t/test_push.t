@@ -1,3 +1,3 @@
 curl -X POST \
-	-H 'X-Hub-Signature: 8d0138d35a5a7938e7bd5da1e46c40dddc7f1dff' \
-	-H 'X-Github-Event: push' -d @data/push.json localhost:3000/event
+	-H 'X-Hub-Signature: b82e75b4f255467bfd6efd2cef49be374b95886e' \
+	-H 'X-Github-Event: push' -d @data/push.json localhost:3000/event/spring1944

@@ -20,9 +20,8 @@ my %notification_blacklist = (
 );
 
 my %handlers = (
-	push => sub ($p, $cb) {
+	push => sub ($p, $repo, $cb) {
 		my $commit = $p->{head_commit};
-		my $repo = $p->{repository};
 		my $ref = $p->{ref} =~ s/refs\/heads\///gr;
 
 		Mojo::IOLoop->delay(
@@ -54,10 +53,9 @@ my %handlers = (
 		})->wait;
 	},
 
-	issue_comment => sub ($p, $cb) {
+	issue_comment => sub ($p, $repo, $cb) {
 		my $comment = $p->{comment};
 		my $issue = $p->{issue};
-		my $repo = $p->{repository};
 		Mojo::IOLoop->delay(
 			sub ($d) {
 				get_short_url($comment->{html_url}, $d->begin(0));
@@ -83,9 +81,8 @@ my %handlers = (
 		)->wait;
 	},
 
-	issues => sub ($p, $cb) {
+	issues => sub ($p, $repo, $cb) {
 		my $issue = $p->{issue};
-		my $repo = $p->{repository};
 		Mojo::IOLoop->delay(
 			sub ($d) {
 				get_short_url($issue->{html_url}, $d->begin(0));
@@ -122,8 +119,11 @@ sub get_short_url ($shortlink_target, $cb) {
 }
 
 sub parse_event ($event_type, $payload, $cb) {
+	my $repo = $payload->{repository};
+
 	die "unknown event: $event_type " . Dumper($payload). "\n" if not $handlers{$event_type};
-	$handlers{$event_type}->($payload, $cb);
+
+	$handlers{$event_type}->($payload, $repo, $cb);
 }
 
 sub _trim ($str) {

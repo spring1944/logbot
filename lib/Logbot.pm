@@ -17,9 +17,15 @@ sub startup ($app) {
 		$c->render(status => 500, text => "server error\n");
 	});
 
+	my @channels;
+	for my $org_name (keys $app->config->{orgs}->%*) {
+		my $org = $app->config->{orgs}->{$org_name};
+		push @channels, $org->{channels}->@*;
+	}
+
 	$app->helper(irc => sub {
 		state $irc = Logbot::IRC->new(
-			channels => $config->{irc}->{channels},
+			channels => \@channels,
 			user => $config->{irc}->{user},
 			nick => $config->{irc}->{nick},
 			server => $config->{irc}->{server},
@@ -41,7 +47,7 @@ sub startup ($app) {
 	});
 
 	my $r = $app->routes;
-	$r->post('/event')->to('webhook#event');
+	$r->post('/event/:organization')->to('webhook#event');
 }
 
 
