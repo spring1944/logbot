@@ -32,11 +32,12 @@ sub new {
 		$self->emit(message => $channel, $user, $message);
 	});
 
-	$self->on(error => sub ($, $err) {
+	$self->on(error => sub {
+		my ($self, $err) = @_;
 		$self->log->warn("error in IRC connection: $err");
 	});
 
-	$self->on(close => sub ($, $message) {
+	$self->on(close => sub {
 		Mojo::IOLoop->timer($self->polite_delay => sub {
 			$self->connect;
 		});
