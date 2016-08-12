@@ -38,8 +38,10 @@ sub new {
 	});
 
 	$self->on(close => sub {
+		$self->log->warn("connection to server closed, exiting (supervisord should reboot me)");
 		Mojo::IOLoop->timer($self->polite_delay => sub {
-			$self->connect;
+			Mojo::IOLoop->stop;
+			exit(1);
 		});
 	});
 
